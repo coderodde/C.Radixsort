@@ -285,11 +285,11 @@ static void merge(unsigned* source,
            sizeof(unsigned) * (right_bound - right_index));
 }
 
-static void mergesort(unsigned* source,
-                      unsigned* target,
-                      size_t recursion_depth,
-                      size_t from_index,
-                      size_t to_index) {
+static void radix_sort_mergesort(unsigned* source,
+                                 unsigned* target,
+                                 size_t recursion_depth,
+                                 size_t from_index,
+                                 size_t to_index) {
 
     unsigned* s;
     unsigned* t;
@@ -392,11 +392,11 @@ static void radix_sort_impl_no_threads(unsigned* source,
     range_length = to_index - from_index;
 
     if (range_length <= MERGESORT_THRESHOLD) {
-        mergesort(source,
-                  target,
-                  recursion_depth,
-                  from_index,
-                  to_index);
+        radix_sort_mergesort(source,
+                             target,
+                             recursion_depth,
+                             from_index,
+                             to_index);
         return;
     }
 
@@ -505,11 +505,11 @@ static void parallel_radix_sort_impl(unsigned* source,
     range_length = to_index - from_index;
 
     if (range_length <= MERGESORT_THRESHOLD) {
-        mergesort(source,
-                  target,
-                  recursion_depth,
-                  from_index,
-                  to_index);
+        radix_sort_mergesort(source,
+                             target,
+                             recursion_depth,
+                             from_index,
+                             to_index);
         return;
     }
 
