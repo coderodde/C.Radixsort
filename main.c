@@ -62,7 +62,7 @@ int ucmp(const void* pa, const void* pb) {
     return 0;
 }
 
-static size_t LENGTH = 1000 * 1000;
+static size_t LENGTH = 50 * 1000 * 1000;
 
 int main() {
     unsigned* array1;
