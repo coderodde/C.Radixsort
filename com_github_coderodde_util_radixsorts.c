@@ -44,15 +44,11 @@ static void* array_t_get(array_t* array, size_t index) {
 }
 
 static void array_t_shuffle(array_t* array) {
-    size_t i;
-    size_t j;
-    void* temp;
-
     srand(time(NULL));
 
-    for (i = 0; i != array->size - 1; ++i) {
-        j = i + rand() % (array->size - i);
-        temp = array->data[i];
+    for (size_t i = 0; i != array->size - 1; ++i) {
+        size_t j = i + rand() % (array->size - i);
+        void* temp = array->data[i];
         array->data[i] = array->data[j];
         array->data[j] = temp;
     }
@@ -132,11 +128,9 @@ static void radix_sort_impl_no_threads(unsigned* source,
 static void process_bucket_size_counter_thread(
     bucket_size_counter_thread_data* data) {
 
-    size_t i;
-
     memset(data->local_bucket_size_map, 0, BUCKETS * sizeof(size_t));
 
-    for (i = data->from_index; i != data->to_index; ++i) {
+    for (size_t i = data->from_index; i != data->to_index; ++i) {
         data->local_bucket_size_map[
             get_bucket_index(
                 data->source[i],
@@ -145,24 +139,17 @@ static void process_bucket_size_counter_thread(
 }
 
 static void process_bucket_inserter_thread(bucket_inserter_thread_data* data) {
-    size_t bucket_index;
-    size_t i;
-    unsigned datum;
-
-    for (i = data->from_index; i != data->to_index; ++i) {
-        datum = data->source[i];
-        bucket_index = get_bucket_index(datum, data->recursion_depth);
+    for (size_t i = data->from_index; i != data->to_index; ++i) {
+        unsigned datum = data->source[i];
+        size_t bucket_index = get_bucket_index(datum, data->recursion_depth);
         data->target[data->start_index_map[bucket_index] + 
                      data->processed_map[bucket_index]++] = datum;
     }
 }
 
 static void process_sorter_thread(array_t* data) {
-    size_t i;
-    task* t;
-
-    for (i = 0; i != array_t_size(data); ++i) {
-        t = array_t_get(data, i);
+    for (size_t i = 0; i != array_t_size(data); ++i) {
+        task* t = array_t_get(data, i);
 
         if (t->threads > 1) {
             parallel_radix_sort_impl(t->source,
@@ -244,13 +231,9 @@ static void* sort_buckets_thread_func_pthreads(void* parameter) {
 #endif
 
 static void insertion_sort(unsigned* data, size_t length) {
-    size_t i;
-    signed long j;
-    unsigned datum;
-
-    for (i = 1; i != length; ++i) {
-        datum = data[i];
-        j = i - 1;
+    for (size_t i = 1; i != length; ++i) {
+        unsigned datum = data[i];
+        signed long j = i - 1;
 
         while (j >= 0 && data[j] > datum) {
             data[j + 1] = data[j];
@@ -290,52 +273,36 @@ static void radix_sort_mergesort(unsigned* source,
                                  size_t recursion_depth,
                                  size_t from_index,
                                  size_t to_index) {
-
-    unsigned* s;
-    unsigned* t;
-    unsigned* temp;
-
-    int even;
-
-    size_t i;
-    size_t left_bound;
-    size_t left_index;
     size_t offset = from_index;
-    size_t passes = 0;
-    size_t range_length;
-    size_t right_bound;
-    size_t runs;
-    size_t run_index;
-    size_t run_width;
+    size_t range_length = to_index - from_index;
+    unsigned* s = source;
+    unsigned* t = target;
 
-    range_length = to_index - from_index;
-    s = source;
-    t = target;
+    size_t runs = range_length / INSERTION_SORT_THRESHOLD;
 
-    runs = range_length / INSERTION_SORT_THRESHOLD;
-
-    for (i = 0; i != runs; ++i) {
+    for (size_t i = 0; i != runs; ++i) {
         insertion_sort(source + offset, INSERTION_SORT_THRESHOLD);
         offset += INSERTION_SORT_THRESHOLD;
     }
 
     if (range_length % INSERTION_SORT_THRESHOLD != 0) {
         /* Sort the rightmost run that is smaller than */
-	/* INSERTION_SORT_THRESHOLD.                   */
+    	/* INSERTION_SORT_THRESHOLD.                   */
         insertion_sort(source + offset, to_index - offset);
         runs++;
     }
 
-    run_width = INSERTION_SORT_THRESHOLD;
+    size_t run_width = INSERTION_SORT_THRESHOLD;
+    size_t passes = 0;
 
     while (runs != 1) {
         passes++;
-        run_index = 0;
+        size_t run_index = 0;
 
         for (; run_index < runs - 1; run_index += 2) {
-            left_index = from_index + run_index * run_width;
-            left_bound = left_index + run_width;
-            right_bound = MIN(left_bound + run_width, to_index);
+            size_t left_index = from_index + run_index * run_width;
+            size_t left_bound = left_index + run_width;
+            size_t right_bound = MIN(left_bound + run_width, to_index);
 
             merge(s,
                   t,
@@ -351,13 +318,13 @@ static void radix_sort_mergesort(unsigned* source,
         }
 
         runs = (runs / 2) + (runs % 2 == 0 ? 0 : 1);
-        temp = s;
+        unsigned* temp = s;
         s = t;
         t = temp;
         run_width *= 2;
     }
 
-    even = (passes % 2 == 0) ? 1 : 0;
+    int even = (passes % 2 == 0) ? 1 : 0;
 
     if (recursion_depth % 2 == 1) {
         if (even == 1) {
@@ -381,15 +348,11 @@ static void radix_sort_impl_no_threads(unsigned* source,
                                        size_t recursion_depth,
                                        size_t from_index,
                                        size_t to_index) {
-    size_t bucket_key;
-    size_t i;
-    size_t bucket_size_map[BUCKETS];
-    size_t processed_map[BUCKETS];
-    size_t range_length;
+    size_t bucket_size_map[BUCKETS] = { 0 };
+    size_t processed_map[BUCKETS] = { 0 };
     size_t start_index_map[BUCKETS];
-    unsigned datum;
 
-    range_length = to_index - from_index;
+    size_t range_length = to_index - from_index;
 
     if (range_length <= MERGESORT_THRESHOLD) {
         radix_sort_mergesort(source,
@@ -400,28 +363,24 @@ static void radix_sort_impl_no_threads(unsigned* source,
         return;
     }
 
-    memset(bucket_size_map, 0, BUCKETS * sizeof(size_t));
-    memset(start_index_map, 0, BUCKETS * sizeof(size_t));
-    memset(processed_map, 0, BUCKETS * sizeof(size_t));
-
     /* Compute the size of each bucket: */
-    for (i = from_index; i != to_index; i++) {
+    for (size_t i = from_index; i != to_index; i++) {
         bucket_size_map[get_bucket_index(source[i], recursion_depth)]++;
     }
 
     /* Initialize thee start index map: */
     start_index_map[0] = from_index;
 
-    for (i = 1; i != BUCKETS; ++i) {
+    for (size_t i = 1; i != BUCKETS; ++i) {
         start_index_map[i] = start_index_map[i - 1]
                            + bucket_size_map[i - 1];
     }
 
     /* Insert the data from 'source' into their */
     /* respective position in 'target': */
-    for (i = from_index; i != to_index; ++i) {
-        datum = source[i];
-        bucket_key = get_bucket_index(datum, recursion_depth);
+    for (size_t i = from_index; i != to_index; ++i) {
+        unsigned datum = source[i];
+        size_t bucket_key = get_bucket_index(datum, recursion_depth);
         target[start_index_map[bucket_key] + 
                processed_map[bucket_key]++] = datum;
     }
@@ -435,7 +394,7 @@ static void radix_sort_impl_no_threads(unsigned* source,
         return;
     }
 
-    for (i = 0; i != BUCKETS; ++i) {
+    for (size_t i = 0; i != BUCKETS; ++i) {
         if (bucket_size_map[i] != 0) {
             radix_sort_impl_no_threads(target,
                                        source,
@@ -448,13 +407,11 @@ static void radix_sort_impl_no_threads(unsigned* source,
 }
 
 void radix_sort(unsigned* data, size_t length) {
-    unsigned* buffer;
-
     if (length < 2) {
         return;
     }
 
-    buffer = malloc(sizeof(unsigned) * length);
+    unsigned* buffer = malloc(sizeof(unsigned) * length);
     radix_sort_impl_no_threads(data, buffer, 0, 0, length);
     free(buffer);
 }
@@ -465,22 +422,6 @@ static void parallel_radix_sort_impl(unsigned* source,
                                      size_t recursion_depth,
                                      size_t from_index,
                                      size_t to_index) {
-    size_t bucket_key;
-    size_t f;
-    size_t i;
-    size_t idx;
-    size_t j;
-    size_t list_index;
-    size_t number_of_nonempty_buckets;
-    size_t optimal_subrange_length;
-    size_t packed;
-    size_t range_length;
-    size_t spawn_degree;
-    size_t start;
-    size_t subrange_length;
-    size_t sz;
-    size_t sz2;
-    size_t tmp;
     size_t* partial_bucket_size_map;
     size_t* thread_count_map;
     size_t bucket_size_map[BUCKETS] = { 0 };
@@ -502,7 +443,7 @@ static void parallel_radix_sort_impl(unsigned* source,
     pthread_t* unix_thread_ids;
 #endif
 
-    range_length = to_index - from_index;
+    size_t range_length = to_index - from_index;
 
     if (range_length <= MERGESORT_THRESHOLD) {
         radix_sort_mergesort(source,
@@ -525,8 +466,8 @@ static void parallel_radix_sort_impl(unsigned* source,
     bucket_size_counter_threads_data =
         malloc(threads * sizeof(*bucket_size_counter_threads_data));
 
-    start = from_index;
-    subrange_length = range_length / threads;
+    size_t start = from_index;
+    size_t subrange_length = range_length / threads;
 
 #ifdef _WIN32
     win_thread_handles = malloc(threads * sizeof(HANDLE));
@@ -534,7 +475,7 @@ static void parallel_radix_sort_impl(unsigned* source,
     unix_thread_ids = malloc(threads * sizeof(pthread_t));
 #endif
 
-    for (i = 0; i != threads - 1; ++i) {
+    for (size_t i = 0; i != threads - 1; ++i) {
         bucket_size_counter_threads_data[i].source = source;
         bucket_size_counter_threads_data[i].recursion_deph = recursion_depth;
         bucket_size_counter_threads_data[i].from_index = start;
@@ -587,7 +528,7 @@ static void parallel_radix_sort_impl(unsigned* source,
         &bucket_size_counter_threads_data[threads - 1]);
 
     /* Wait for all the bucket counters: */
-    for (i = 0; i != threads - 1; ++i) {
+    for (size_t i = 0; i != threads - 1; ++i) {
 #ifdef _WIN32
         WaitForSingleObject(win_thread_handles[i], INFINITE);
 #elif defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
@@ -596,43 +537,43 @@ static void parallel_radix_sort_impl(unsigned* source,
     }
 
     /* Build the global bucket size map for the entire sorting range: */
-    for (i = 0; i != threads; ++i) {
-        for (j = 0; j != BUCKETS; ++j) {
+    for (size_t i = 0; i != threads; ++i) {
+        for (size_t j = 0; j != BUCKETS; ++j) {
             bucket_size_map[j] +=
                 bucket_size_counter_threads_data[i].local_bucket_size_map[j];
         }
     }
 
-    number_of_nonempty_buckets = 0;
+    size_t number_of_nonempty_buckets = 0;
 
-    for (i = 0; i != BUCKETS; ++i) {
+    for (size_t i = 0; i != BUCKETS; ++i) {
         if (bucket_size_map[i] != 0) {
             number_of_nonempty_buckets++;
         }
     }
 
-    spawn_degree = MIN(number_of_nonempty_buckets, threads);
+    size_t spawn_degree = MIN(number_of_nonempty_buckets, threads);
 
     /* Prepare the starting indices of each bucket: */
     start_index_map[0] = from_index;
 
-    for (i = 1; i != BUCKETS; ++i) {
+    for (size_t i = 1; i != BUCKETS; ++i) {
         start_index_map[i] = start_index_map[i - 1]
                            + bucket_size_map[i - 1];
     }
 
     processed_map = malloc(spawn_degree * sizeof(size_t*));
 
-    for (i = 0; i != spawn_degree; ++i) {
+    for (size_t i = 0; i != spawn_degree; ++i) {
         processed_map[i] = calloc(BUCKETS, sizeof(size_t));
     }
 
     /* Make the preprocessed_map of each thread independent of the other. */
-    for (i = 1; i != spawn_degree; ++i) {
+    for (size_t i = 1; i != spawn_degree; ++i) {
         partial_bucket_size_map =
             (bucket_size_counter_threads_data[i - 1].local_bucket_size_map);
 
-        for (j = 0; j != BUCKETS; ++j) {
+        for (size_t j = 0; j != BUCKETS; ++j) {
             processed_map[i][j] = processed_map[i - 1][j]
                                 + partial_bucket_size_map[j];
         }
@@ -643,7 +584,7 @@ static void parallel_radix_sort_impl(unsigned* source,
     bucket_inserter_threads_data =
         malloc(spawn_degree * sizeof(bucket_inserter_thread_data));
 
-    for (i = 0; i != spawn_degree - 1; ++i) {
+    for (size_t i = 0; i != spawn_degree - 1; ++i) {
         bucket_inserter_threads_data[i].start_index_map = start_index_map;
         bucket_inserter_threads_data[i].processed_map = processed_map[i];
         bucket_inserter_threads_data[i].source = source;
@@ -682,7 +623,7 @@ static void parallel_radix_sort_impl(unsigned* source,
     bucket_inserter_threads_data[spawn_degree - 1].processed_map =
         processed_map[spawn_degree - 1];
 
-    bucket_inserter_threads_data[spawn_degree - 1].source = source;
+    bucket_inserter_threads_data[spawn_degree - 1].source =     source;
     bucket_inserter_threads_data[spawn_degree - 1].target = target;
     bucket_inserter_threads_data[spawn_degree - 1].recursion_depth =
         recursion_depth;
@@ -694,7 +635,7 @@ static void parallel_radix_sort_impl(unsigned* source,
         &bucket_inserter_threads_data[spawn_degree - 1]);
 
     /* Wait for all the bucket inserters: */
-    for (i = 0; i != spawn_degree - 1; ++i) {
+    for (size_t i = 0; i != spawn_degree - 1; ++i) {
 #ifdef _WIN32
         WaitForSingleObject(win_thread_handles[i], INFINITE);
 #elif defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
@@ -705,7 +646,7 @@ static void parallel_radix_sort_impl(unsigned* source,
     free(bucket_size_counter_threads_data);
     free(bucket_inserter_threads_data);
 
-    for (i = 0; i != spawn_degree; ++i) {
+    for (size_t i = 0; i != spawn_degree; ++i) {
         free(processed_map[i]);
     }
 
@@ -718,7 +659,7 @@ static void parallel_radix_sort_impl(unsigned* source,
 
     array_t_init(&bucket_index_list_array, spawn_degree);
 
-    for (i = 0; i != spawn_degree; ++i) {
+    for (size_t i = 0; i != spawn_degree; ++i) {
         array_t* bucket_key_array = malloc(sizeof(array_t));
         array_t_init(bucket_key_array, number_of_nonempty_buckets);
         array_t_add(&bucket_index_list_array, bucket_key_array);
@@ -726,17 +667,17 @@ static void parallel_radix_sort_impl(unsigned* source,
 
     thread_count_map = calloc(spawn_degree, sizeof(size_t));
 
-    for (i = 0; i != spawn_degree; ++i) {
+    for (size_t i = 0; i != spawn_degree; ++i) {
         thread_count_map[i] = threads / spawn_degree;
     }
 
-    for (i = 0; i != threads % spawn_degree; ++i) {
+    for (size_t i = 0; i != threads % spawn_degree; ++i) {
         ++thread_count_map[i];
     }
 
     array_t_init(&non_empty_bucket_indices, number_of_nonempty_buckets);
 
-    for (bucket_key = 0; bucket_key != BUCKETS; ++bucket_key) {
+    for (size_t bucket_key = 0; bucket_key != BUCKETS; ++bucket_key) {
         if (bucket_size_map[bucket_key] != 0) {
             array_t_add(&non_empty_bucket_indices, (void*) bucket_key);
         }
@@ -744,18 +685,18 @@ static void parallel_radix_sort_impl(unsigned* source,
 
     array_t_shuffle(&non_empty_bucket_indices);
 
-    f = 0;
-    j = 0;
-    list_index = 0;
-    optimal_subrange_length = range_length / spawn_degree;
-    packed = 0;
-    sz = array_t_size(&non_empty_bucket_indices);
+    size_t f = 0;
+    size_t j = 0;
+    size_t list_index = 0;
+    size_t optimal_subrange_length = range_length / spawn_degree;
+    size_t packed = 0;
+    size_t sz = array_t_size(&non_empty_bucket_indices);
 
     while (j != sz) {
         size_t bucket_key =
             (size_t) array_t_get(&non_empty_bucket_indices, j++);
 
-        tmp = bucket_size_map[bucket_key];
+        size_t tmp = bucket_size_map[bucket_key];
         packed += tmp;
 
         if (packed >= optimal_subrange_length ||
@@ -763,7 +704,7 @@ static void parallel_radix_sort_impl(unsigned* source,
 
             packed = 0;
 
-            for (i = f; i != j; ++i) {
+            for (size_t i = f; i != j; ++i) {
                 size_t bucket_key =
                     (size_t) array_t_get(&non_empty_bucket_indices, i);
 
@@ -780,14 +721,14 @@ static void parallel_radix_sort_impl(unsigned* source,
 
     array_t_init(&array_of_task_arrays, spawn_degree);
 
-    for (i = 0; i != spawn_degree; ++i) {
+    for (size_t i = 0; i != spawn_degree; ++i) {
         array_t* task_array = malloc(sizeof(array_t));
         array_t_init(task_array, BUCKETS);
         arr2 = (array_t*) array_t_get(&bucket_index_list_array, i);
         sz = array_t_size(arr2);
 
-        for (idx = 0; idx != sz; ++idx) {
-            bucket_key = (size_t) array_t_get(arr2, idx);
+        for (size_t idx = 0; idx != sz; ++idx) {
+            size_t bucket_key = (size_t) array_t_get(arr2, idx);
 
             t = malloc(sizeof(task));
 
@@ -805,7 +746,7 @@ static void parallel_radix_sort_impl(unsigned* source,
         array_t_add(&array_of_task_arrays, task_array);
     }
 
-    for (i = 0; i != spawn_degree - 1; ++i) {
+    for (size_t i = 0; i != spawn_degree - 1; ++i) {
         array_t* task_array = array_t_get(&array_of_task_arrays, i);
 
 #ifdef _WIN32
@@ -837,7 +778,7 @@ static void parallel_radix_sort_impl(unsigned* source,
             &array_of_task_arrays,
             spawn_degree - 1));
 
-    for (i = 0; i != spawn_degree - 1; ++i) {
+    for (size_t i = 0; i != spawn_degree - 1; ++i) {
 
 #ifdef _WIN32
         WaitForSingleObject(win_thread_handles[i], INFINITE);
@@ -855,10 +796,10 @@ static void parallel_radix_sort_impl(unsigned* source,
 
     sz = array_t_size(&array_of_task_arrays);
 
-    for (i = 0; i != sz; ++i) {
+    for (size_t i = 0; i != sz; ++i) {
         array_t* task_array = array_t_get(&array_of_task_arrays, i);
 
-        sz2 = array_t_size(task_array);
+        size_t sz2 = array_t_size(task_array);
 
         for (j = 0; j != sz2; ++j) {
             free(array_t_get(task_array, j));
@@ -870,7 +811,7 @@ static void parallel_radix_sort_impl(unsigned* source,
 
     sz = array_t_size(&bucket_index_list_array);
 
-    for (i = 0; i != sz; ++i) {
+    for (size_t i = 0; i != sz; ++i) {
         array_t* array = array_t_get(&bucket_index_list_array, i);
         array_t_destruct(array);
         free(array);
